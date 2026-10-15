@@ -2,100 +2,144 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Битва за Мир — Все Страны</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Битва за Мир</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson@3"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-  body { background: #1a1a2e; color: #fff; display: flex; justify-content: center; padding: 10px; min-height: 100vh; }
-  .game { max-width: 1300px; width: 100%; }
-  .top-bar { display: flex; gap: 10px; margin-bottom: 10px; }
-  .player-panel { flex: 1; background: #16213e; border-radius: 12px; padding: 12px; border: 2px solid #0f3460; }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #1a1a2e; color: #fff; display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  
+  .top-bar { display: flex; gap: 6px; padding: 6px; background: #0f0f1e; border-bottom: 1px solid #2a2a3e; flex-shrink: 0; }
+  .player-panel { flex: 1; background: #16213e; border-radius: 10px; padding: 8px 10px; border: 2px solid #0f3460; min-width: 0; }
   .player-panel.p1 { border-color: #e94560; }
   .player-panel.p2 { border-color: #2d6a9f; }
-  .player-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
-  .money { font-size: 20px; color: #f4c542; font-weight: bold; }
-  .hint { font-size: 11px; color: #aaa; margin-top: 3px; }
-  #map-container { position: relative; width: 100%; background: #0a0a1a; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
-  #mapSvg { width: 100%; height: auto; display: block; background: #0a1628; }
-  .country { stroke: #1a1a2e; stroke-width: 0.4px; cursor: pointer; transition: fill 0.2s; }
+  .player-panel.active { box-shadow: 0 0 12px rgba(244,197,66,0.5); }
+  .player-name { font-weight: bold; font-size: 12px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .money { font-size: 16px; color: #f4c542; font-weight: bold; }
+  .hint { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .power-line { font-size: 10px; color: #f4c542; margin-top: 2px; }
+  
+  #map-container { position: relative; flex: 1; background: #0a0a1a; overflow: hidden; touch-action: none; cursor: grab; }
+  #map-container:active { cursor: grabbing; }
+  #mapSvg { width: 100%; height: 100%; display: block; background: #0a1628; }
+  .country { stroke: #1a1a2e; stroke-width: 0.4px; cursor: pointer; transition: fill 0.3s; }
   .country:hover { opacity: 0.75; }
   .country.owner-0 { fill: #2a2a3e; }
   .country.owner-1 { fill: #e94560; }
   .country.owner-2 { fill: #2d6a9f; }
-  .city-marker { stroke: #fff; stroke-width: 1.5px; cursor: pointer; transition: 0.2s; }
-  .city-marker:hover { stroke: #f4c542; stroke-width: 2.5px; }
-  .city-label { font-size: 8px; fill: #fff; pointer-events: none; opacity: 0.8; }
+  .city-marker { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
+  .city-label { font-size: 9px; fill: #fff; pointer-events: none; opacity: 0.9; font-weight: bold; }
+  .city-troops { font-size: 9px; fill: #f4c542; pointer-events: none; font-weight: bold; }
+  
   .tooltip { position: absolute; background: rgba(15, 52, 96, 0.97); border: 1px solid #f4c542; border-radius: 6px; padding: 6px 10px; font-size: 12px; pointer-events: none; display: none; z-index: 100; white-space: nowrap; }
-  .actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
-  button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-primary { background: #e94560; color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #ff6b81; }
-  .btn-secondary { background: #2d6a9f; color: #fff; }
-  .btn-secondary:hover:not(:disabled) { background: #3d8ac9; }
+  
+  .bottom-bar { display: flex; gap: 6px; padding: 8px; background: #0f0f1e; border-top: 1px solid #2a2a3e; flex-shrink: 0; }
+  .bottom-bar button { flex: 1; padding: 12px 8px; border: none; border-radius: 10px; font-weight: bold; font-size: 12px; cursor: pointer; transition: 0.2s; }
+  .bottom-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-gold { background: #f4c542; color: #1a1a2e; }
   .btn-gold:hover:not(:disabled) { background: #ffd966; }
-  .shop { margin-top: 10px; background: #16213e; border-radius: 12px; padding: 15px; display: flex; gap: 15px; flex-wrap: wrap; }
-  .shop-item { background: #1a1a2e; border-radius: 8px; padding: 10px; min-width: 150px; flex: 1; }
-  .shop-item h4 { font-size: 13px; margin-bottom: 5px; color: #f4c542; }
-  .shop-item p { font-size: 11px; color: #aaa; margin-bottom: 8px; }
-  .unit-icon { font-size: 32px; display: block; margin: 5px 0; }
-  .log { margin-top: 10px; background: #16213e; border-radius: 12px; padding: 12px; max-height: 100px; overflow-y: auto; font-size: 12px; color: #ccc; }
-  .log div { margin-bottom: 3px; }
-  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; }
-  .modal { background: #16213e; border-radius: 16px; padding: 25px; max-width: 550px; width: 90%; max-height: 80vh; overflow-y: auto; }
-  .modal h3 { margin-bottom: 15px; color: #f4c542; }
-  .country-option { display: block; width: 100%; padding: 10px 12px; margin-bottom: 6px; background: #1a1a2e; border: 2px solid #555; border-radius: 10px; color: #fff; cursor: pointer; text-align: left; font-size: 13px; }
+  .btn-red { background: #e94560; color: #fff; }
+  .btn-red:hover:not(:disabled) { background: #ff6b81; }
+  .btn-blue { background: #2d6a9f; color: #fff; }
+  .btn-blue:hover:not(:disabled) { background: #3d8ac9; }
+  
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #16213e; border-radius: 20px 20px 0 0; padding: 20px; width: 100%; max-height: 85vh; overflow-y: auto; animation: slideUp 0.25s ease-out; position: relative; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h3 { margin-bottom: 15px; color: #f4c542; font-size: 18px; }
+  .modal-close { position: absolute; top: 10px; right: 15px; background: transparent; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 5px 10px; line-height: 1; }
+  
+  .country-option { display: flex; align-items: center; width: 100%; padding: 10px 12px; margin-bottom: 6px; background: #1a1a2e; border: 2px solid #555; border-radius: 10px; color: #fff; cursor: pointer; text-align: left; font-size: 13px; }
   .country-option:hover { border-color: #f4c542; }
   .country-option.selected { border-color: #e94560; background: #3e1620; }
+  .country-option:disabled { opacity: 0.4; }
   .country-option .flag { font-size: 22px; margin-right: 10px; }
-  .turn-indicator { text-align: center; padding: 8px; background: #0f3460; border-radius: 8px; margin-bottom: 10px; font-weight: bold; }
-  .search-box { width: 100%; padding: 8px 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #555; background: #1a1a2e; color: #fff; font-size: 14px; }
+  
+  .search-box { width: 100%; padding: 10px 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #555; background: #1a1a2e; color: #fff; font-size: 14px; }
+  
+  .shop-item { background: #1a1a2e; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .shop-item-info { flex: 1; }
+  .shop-item h4 { font-size: 14px; margin-bottom: 4px; color: #f4c542; }
+  .shop-item p { font-size: 11px; color: #aaa; }
+  .unit-icon { font-size: 28px; }
+  .shop-item button { padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; background: #2d6a9f; color: #fff; cursor: pointer; }
+  .shop-item button:disabled { opacity: 0.4; }
+  
+  .war-btn { width: 100%; padding: 16px; background: #8B0000; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(139,0,0,0.4); transition: 0.2s; }
+  .war-btn:hover:not(:disabled) { background: #a00000; }
+  .war-btn:disabled { background: #555; cursor: not-allowed; }
+  
+  .rocket-btn { width: 100%; padding: 14px; background: #6a1b9a; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(106,27,154,0.4); }
+  .rocket-btn:hover:not(:disabled) { background: #8e24aa; }
+  .rocket-btn:disabled { background: #555; cursor: not-allowed; }
+  
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .action-grid button { padding: 10px 4px; border: none; border-radius: 8px; font-weight: bold; font-size: 11px; background: #e94560; color: #fff; cursor: pointer; }
+  .action-grid button:disabled { opacity: 0.4; }
+  
+  .log-toggle { position: absolute; bottom: 10px; left: 10px; background: rgba(15, 52, 96, 0.9); color: #fff; border: 1px solid #f4c542; border-radius: 20px; padding: 6px 12px; font-size: 11px; cursor: pointer; z-index: 50; }
+  .log-panel { position: absolute; bottom: 50px; left: 10px; right: 10px; max-height: 150px; background: rgba(15, 52, 96, 0.95); border-radius: 10px; padding: 10px; font-size: 11px; color: #ccc; overflow-y: auto; display: none; z-index: 50; }
+  .log-panel.show { display: block; }
+  
+  .zoom-controls { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 50; }
+  .zoom-controls button { width: 40px; height: 40px; border-radius: 50%; background: rgba(15,52,96,0.9); color: #fff; border: 1px solid #f4c542; font-size: 20px; cursor: pointer; }
+  
+  /* АНИМАЦИЯ РАКЕТЫ */
+  .rocket-trail { stroke-dasharray: 5,5; stroke-width: 2; fill: none; opacity: 0.8; }
+  .rocket-dot { filter: drop-shadow(0 0 6px #ff6600); }
+  
+  /* ВСПЫШКА ВЗРЫВА */
+  @keyframes explosion {
+    0% { r: 5; opacity: 1; fill: #fff; }
+    50% { r: 30; opacity: 0.7; fill: #ff6600; }
+    100% { r: 50; opacity: 0; fill: #ff0000; }
+  }
+  .explosion { animation: explosion 1s ease-out forwards; }
+  
+  /* УРОН ВСПЛЫВАЮЩИЙ */
+  @keyframes damageFloat {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-40px); }
+  }
+  .damage-text { animation: damageFloat 1.5s ease-out forwards; font-weight: bold; font-size: 16px; pointer-events: none; }
 </style>
 </head>
 <body>
-<div class="game">
-  <div class="turn-indicator" id="turnIndicator">Ход игрока 1</div>
-  <div class="top-bar">
-    <div class="player-panel p1" id="panel1">
-      <div class="player-name">🌍 <span id="p1Name">—</span></div>
-      <div class="money" id="p1Money">💰 0</div>
-      <div class="hint">Ходов: <span id="p1Actions">3</span>/3 · Доход: <span id="p1Income">+0</span>/сек</div>
-    </div>
-    <div class="player-panel p2" id="panel2">
-      <div class="player-name">🌍 <span id="p2Name">—</span></div>
-      <div class="money" id="p2Money">💰 0</div>
-      <div class="hint">Ходов: <span id="p2Actions">3</span>/3 · Доход: <span id="p2Income">+0</span>/сек</div>
-    </div>
+
+<div class="top-bar">
+  <div class="player-panel p1 active" id="panel1">
+    <div class="player-name">🌍 <span id="p1Name">—</span></div>
+    <div class="money" id="p1Money">💰 0</div>
+    <div class="hint">Ходы: <span id="p1Actions">3</span>/3 · <span id="p1Income">+0</span>/сек</div>
+    <div class="power-line" id="p1Power">⚔️ Сила: 0</div>
   </div>
-  <div id="map-container">
-    <svg id="mapSvg"></svg>
-    <div class="tooltip" id="tooltip"></div>
+  <div class="player-panel p2" id="panel2">
+    <div class="player-name">🌍 <span id="p2Name">—</span></div>
+    <div class="money" id="p2Money">💰 0</div>
+    <div class="hint">Ходы: <span id="p2Actions">3</span>/3 · <span id="p2Income">+0</span>/сек</div>
+    <div class="power-line" id="p2Power">⚔️ Сила: 0</div>
   </div>
-  <div class="actions" id="actions"></div>
-  <div class="shop">
-    <div class="shop-item">
-      <h4>🚶 Пехота</h4>
-      <span class="unit-icon" id="infIcon">🚶</span>
-      <p>Ур. <span id="infLvl">1</span> · Сила: <span id="infPower">10</span></p>
-      <button class="btn-secondary" onclick="upgradeUnit('infantry')">Улучшить (💰50)</button>
-    </div>
-    <div class="shop-item">
-      <h4>🛡️ Танки</h4>
-      <span class="unit-icon" id="tankIcon">🛡️</span>
-      <p>Ур. <span id="tankLvl">1</span> · Сила: <span id="tankPower">25</span></p>
-      <button class="btn-secondary" onclick="upgradeUnit('tank')">Улучшить (💰100)</button>
-    </div>
-    <div class="shop-item">
-      <h4>✈️ Авиация</h4>
-      <span class="unit-icon" id="airIcon">✈️</span>
-      <p>Ур. <span id="airLvl">1</span> · Сила: <span id="airPower">40</span></p>
-      <button class="btn-secondary" onclick="upgradeUnit('air')">Улучшить (💰150)</button>
-    </div>
+</div>
+
+<div id="map-container">
+  <svg id="mapSvg"></svg>
+  <div class="tooltip" id="tooltip"></div>
+  <button class="log-toggle" onclick="toggleLog()">📜 Лог</button>
+  <div class="log-panel" id="logPanel"></div>
+  <div class="zoom-controls">
+    <button onclick="zoomIn()">+</button>
+    <button onclick="zoomOut()">−</button>
+    <button onclick="zoomReset()" style="font-size:14px">⟲</button>
   </div>
-  <div class="log" id="log"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn-gold" onclick="openShop()">🛒 Магазин</button>
+  <button class="btn-gold" onclick="skipTurn()" id="skipBtn">⏭️ Пропуск</button>
+  <button class="btn-blue" onclick="endTurn()" id="endBtn">✅ Ход</button>
 </div>
 
 <div class="modal-bg" id="countryModal">
@@ -103,20 +147,36 @@
     <h3 id="countryTitle">Игрок 1, выбери страну:</h3>
     <input class="search-box" id="countrySearch" placeholder="Поиск страны..." oninput="filterCountries()">
     <div id="countryList"></div>
-    <button class="btn-gold" style="width:100%;margin-top:10px" onclick="confirmCountry()">Подтвердить</button>
+    <button class="btn-gold" style="width:100%;margin-top:10px;padding:14px;border-radius:10px" onclick="confirmCountry()">Подтвердить</button>
   </div>
 </div>
 
 <div class="modal-bg" id="cityModal">
   <div class="modal">
+    <button class="modal-close" onclick="closeModal('cityModal')">×</button>
     <h3 id="cityTitle">Страна/Город</h3>
     <div id="cityInfo" style="margin-bottom:15px;color:#ccc;font-size:14px"></div>
     <div id="cityActions"></div>
-    <button class="btn-gold" style="width:100%;margin-top:15px" onclick="closeModal('cityModal')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="shopModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('shopModal')">×</button>
+    <h3>🛒 Магазин прокачки</h3>
+    <div id="shopContent"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="rocketModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('rocketModal')">×</button>
+    <h3>🚀 Запуск ракеты</h3>
+    <div id="rocketInfo" style="margin-bottom:15px;color:#ccc;font-size:14px"></div>
+    <div id="rocketActions"></div>
   </div>
 </div>
 <script>
-// ===== ДАННЫЕ ВСЕХ СТРАН =====
 let ALL_COUNTRIES = [];
 let COUNTRY_MAP = {};
 
@@ -126,8 +186,8 @@ const state = {
   selectedPick: null,
   currentPlayer: 1,
   players: {
-    1: { country: null, money: 500, income: 5, actions: 3, units: { infantry: 1, tank: 1, air: 1 }, unitLevels: { infantry: 1, tank: 1, air: 1 } },
-    2: { country: null, money: 500, income: 5, actions: 3, units: { infantry: 1, tank: 1, air: 1 }, unitLevels: { infantry: 1, tank: 1, air: 1 } },
+    1: { country: null, money: 500, income: 5, actions: 3, units: { infantry: 1, tank: 1, air: 1 }, unitLevels: { infantry: 1, tank: 1, air: 1 }, rockets: 2 },
+    2: { country: null, money: 500, income: 5, actions: 3, units: { infantry: 1, tank: 1, air: 1 }, unitLevels: { infantry: 1, tank: 1, air: 1 }, rockets: 2 },
   },
   territories: {},
   playerCountryIso: { 1: null, 2: null },
@@ -137,9 +197,9 @@ const state = {
   projection: null,
   pathGenerator: null,
   svg: null,
+  zoomLayer: null,
 };
-  // ===== ЗАГРУЗКА ДАННЫХ =====
-async function loadAllData() {
+ async function loadAllData() {
   try {
     const resp = await fetch('https://cdn.jsdelivr.net/npm/world-countries@4.0.0/countries.json');
     ALL_COUNTRIES = await resp.json();
@@ -162,6 +222,8 @@ async function loadAllData() {
         lat: c.capitalInfo.latlng[0],
         lon: c.capitalInfo.latlng[1],
         isCapital: true,
+        troops: { infantry: 1, tank: 0, air: 0 },
+        owner: 0,
       }));
     
     console.log(`Загружено: ${ALL_COUNTRIES.length} стран, ${state.cities.length} городов`);
@@ -170,27 +232,33 @@ async function loadAllData() {
     console.error("Ошибка загрузки:", e);
     alert("Ошибка загрузки данных. Проверь интернет.");
   }
-      }
-  // ===== ИНИЦИАЛИЗАЦИЯ КАРТЫ =====
+        }
+ let zoomBehavior;
+
 function initGame() {
   const container = document.getElementById("map-container");
   const width = container.clientWidth;
-  const height = width * 0.5;
+  const height = container.clientHeight;
   
   const svg = d3.select("#mapSvg").attr("viewBox", `0 0 ${width} ${height}`);
   state.svg = svg;
   
-  state.projection = d3.geoMercator().scale(width / 6.5).translate([width / 2, height / 2]);
+  state.projection = d3.geoMercator().scale(width / 7).translate([width / 2, height / 2]);
   state.pathGenerator = d3.geoPath().projection(state.projection);
   
-  svg.selectAll("path.country")
+  const g = svg.append("g").attr("class", "zoom-layer");
+  state.zoomLayer = g;
+  
+  // Слой для ракет (поверх всего)
+  g.append("g").attr("class", "rockets-layer");
+  
+  g.selectAll("path.country")
     .data(state.geoData)
     .enter()
     .append("path")
     .attr("class", "country owner-0")
     .attr("d", state.pathGenerator)
     .attr("data-iso", d => d.id)
-    .attr("data-name", d => d.properties.name)
     .on("click", (event, d) => clickCountry(d))
     .on("mouseover", (event, d) => showTooltip(event, d))
     .on("mousemove", (event) => moveTooltip(event))
@@ -202,53 +270,91 @@ function initGame() {
     state.territories[f.id] = 0;
   });
   
+  zoomBehavior = d3.zoom()
+    .scaleExtent([1, 8])
+    .translateExtent([[-width, -height], [width * 2, height * 2]])
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+      const k = event.transform.k;
+      g.selectAll("circle.city-marker").attr("r", 5 / k);
+      g.selectAll("text.city-label").attr("font-size", (9 / k) + "px").attr("y", -12 / k);
+      g.selectAll("text.city-troops").attr("font-size", (9 / k) + "px").attr("y", 16 / k);
+    });
+  
+  svg.call(zoomBehavior);
+  
   renderCountryPicker();
-  document.getElementById("countryModal").style.display = "flex";
+  document.getElementById("countryModal").classList.add("show");
 }
 
+function zoomIn() { state.svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.5); }
+function zoomOut() { state.svg.transition().duration(300).call(zoomBehavior.scaleBy, 1 / 1.5); }
+function zoomReset() { state.svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity); }
+
 function renderCities() {
-  const svg = state.svg;
+  const g = state.zoomLayer;
   
-  svg.selectAll("circle.city-marker")
+  const cityGroups = g.selectAll("g.city-group")
     .data(state.cities)
     .enter()
-    .append("circle")
-    .attr("class", "city-marker")
-    .attr("cx", d => {
+    .append("g")
+    .attr("class", "city-group")
+    .attr("transform", d => {
       const p = state.projection([d.lon, d.lat]);
-      return p ? p[0] : -100;
+      return p ? `translate(${p[0]}, ${p[1]})` : "translate(-100,-100)";
     })
-    .attr("cy", d => {
-      const p = state.projection([d.lon, d.lat]);
-      return p ? p[1] : -100;
-    })
-    .attr("r", 4)
-    .attr("fill", d => {
-      const owner = state.territories[getIsoByCca3(d.countryIso)] || 0;
-      return owner === 1 ? "#e94560" : owner === 2 ? "#2d6a9f" : "#f4c542";
-    })
-    .on("click", (event, d) => clickCityMarker(d))
+    .style("cursor", "pointer")
+    .on("click", (event, d) => { event.stopPropagation(); clickCityMarker(d); })
     .on("mouseover", (event, d) => showCityTooltip(event, d))
     .on("mousemove", (event) => moveTooltip(event))
     .on("mouseout", () => hideTooltip());
   
-  svg.selectAll("text.city-label")
-    .data(state.cities)
-    .enter()
-    .append("text")
+  cityGroups.append("circle")
+    .attr("class", "city-marker")
+    .attr("r", 5)
+    .attr("fill", d => getCityColor(d))
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5);
+  
+  cityGroups.append("text")
     .attr("class", "city-label")
-    .attr("x", d => {
-      const p = state.projection([d.lon, d.lat]);
-      return p ? p[0] + 6 : -100;
-    })
-    .attr("y", d => {
-      const p = state.projection([d.lon, d.lat]);
-      return p ? p[1] + 3 : -100;
-    })
+    .attr("y", -12)
+    .attr("text-anchor", "middle")
+    .attr("stroke", "#000")
+    .attr("stroke-width", "0.3px")
+    .attr("paint-order", "stroke")
     .text(d => d.name);
+  
+  cityGroups.append("text")
+    .attr("class", "city-troops")
+    .attr("y", 16)
+    .attr("text-anchor", "middle")
+    .attr("stroke", "#000")
+    .attr("stroke-width", "0.4px")
+    .attr("paint-order", "stroke")
+    .text(d => formatTroops(d.troops));
 }
-  // ===== ВСПОМОГАТЕЛЬНЫЕ =====
-function getIsoByCca3(cca3) {
+
+function formatTroops(troops) {
+  const parts = [];
+  if (troops.infantry > 0) parts.push(`🚶×${troops.infantry}`);
+  if (troops.tank > 0) parts.push(`🛡️×${troops.tank}`);
+  if (troops.air > 0) parts.push(`✈️×${troops.air}`);
+  return parts.length ? parts.join(" ") : "—";
+}
+
+function getCityColor(city) {
+  const owner = city.owner || state.territories[getIsoByCca3(city.countryIso)] || 0;
+  if (owner === 1) return "#e94560";
+  if (owner === 2) return "#2d6a9f";
+  return "#f4c542";
+}
+
+function updateCityLabels() {
+  state.zoomLayer.selectAll("circle.city-marker").attr("fill", d => getCityColor(d));
+  state.zoomLayer.selectAll("text.city-troops").text(d => formatTroops(d.troops));
+ }
+ function getIsoByCca3(cca3) {
   const c = COUNTRY_MAP[cca3];
   return c ? c.ccn3 : null;
 }
@@ -262,13 +368,84 @@ function getCountryNameByIso(iso) {
   return "Неизвестно";
 }
 
-function getDefense(iso) {
-  const owner = state.territories[iso] || 0;
-  const cityCount = state.cities.filter(c => getIsoByCca3(c.countryIso) === iso).length;
-  return 25 + (owner !== 0 ? 15 : 0) + cityCount * 3;
+function getCityDefense(city) {
+  const owner = city.owner || state.territories[getIsoByCca3(city.countryIso)] || 0;
+  let base = 20 + (owner !== 0 ? 10 : 0) + (city.isCapital ? 15 : 0);
+  base += city.troops.infantry * 5;
+  base += city.troops.tank * 15;
+  base += city.troops.air * 25;
+  return base;
 }
-  // ===== ВЫБОР СТРАНЫ =====
-function renderCountryPicker() {
+
+function getCountryPower(iso) {
+  const cities = state.cities.filter(c => getIsoByCca3(c.countryIso) === iso);
+  let power = 0, infantry = 0, tank = 0, air = 0;
+  cities.forEach(city => {
+    infantry += city.troops.infantry;
+    tank += city.troops.tank;
+    air += city.troops.air;
+    power += getCityDefense(city);
+  });
+  if (cities.length === 0) power = 25;
+  return { power, infantry, tank, air, cityCount: cities.length };
+}
+
+function getPlayerTotalPower(playerId) {
+  let infantry = 0, tank = 0, air = 0, cities = 0;
+  state.cities.forEach(c => {
+    if (c.owner === playerId) {
+      infantry += c.troops.infantry;
+      tank += c.troops.tank;
+      air += c.troops.air;
+      cities++;
+    }
+  });
+  const power = infantry * 10 + tank * 25 + air * 40;
+  return { infantry, tank, air, cities, power };
+}
+
+// ГАВЕРСИНУС
+function getDistance(city1, city2) {
+  const R = 6371;
+  const dLat = (city2.lat - city1.lat) * Math.PI / 180;
+  const dLon = (city2.lon - city1.lon) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(city1.lat * Math.PI / 180) * Math.cos(city2.lat * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function getNearestMyCity(targetCity, playerId) {
+  const myCities = state.cities.filter(c => c.owner === playerId);
+  if (myCities.length === 0) return null;
+  let nearest = null;
+  let minDist = Infinity;
+  myCities.forEach(c => {
+    const d = getDistance(c, targetCity);
+    if (d < minDist) { minDist = d; nearest = c; }
+  });
+  return { city: nearest, distance: Math.round(minDist) };
+}
+
+function canAttackCity(targetCity, playerId) {
+  const player = state.players[playerId];
+  const nearest = getNearestMyCity(targetCity, playerId);
+  
+  if (!nearest) return { allowed: false, reason: "Нет твоих городов!", distance: 0 };
+  
+  const dist = nearest.distance;
+  const hasAir = player.units.air > 0;
+  
+  if (dist <= 3000) return { allowed: true, reason: "Близко", distance: dist, nearest: nearest.city };
+  if (dist <= 8000) {
+    if (hasAir) return { allowed: true, reason: `Далеко (${dist} км), есть авиация`, distance: dist, nearest: nearest.city, needAir: true };
+    return { allowed: false, reason: `Далеко (${dist} км). Нужна авиация!`, distance: dist, nearest: nearest.city, needAir: true };
+  }
+  return { allowed: false, reason: `Очень далеко (${dist} км). Только ракеты!`, distance: dist, nearest: nearest.city, needRocket: true };
+}
+ function renderCountryPicker() {
   const list = document.getElementById("countryList");
   const title = document.getElementById("countryTitle");
   const p = state.pickingPlayer;
@@ -290,16 +467,15 @@ function renderCountryPicker() {
       ${disabled ? 'disabled' : ''} 
       onclick="pickCountry('${c.cca3}')">
       <span class="flag">${c.flag}</span>${name}
-      ${disabled ? '<span style="color:#e94560;font-size:11px">занято</span>' : ''}
+      ${disabled ? '<span style="color:#e94560;font-size:11px;margin-left:auto">занято</span>' : ''}
     </button>`;
   }).join("");
 }
 
 function filterCountries() {
   const q = document.getElementById("countrySearch").value.toLowerCase();
-  const buttons = document.querySelectorAll("#countryList .country-option");
-  buttons.forEach(b => {
-    b.style.display = b.textContent.toLowerCase().includes(q) ? "block" : "none";
+  document.querySelectorAll("#countryList .country-option").forEach(b => {
+    b.style.display = b.textContent.toLowerCase().includes(q) ? "flex" : "none";
   });
 }
 
@@ -316,6 +492,14 @@ function confirmCountry() {
   state.players[p].country = country;
   state.playerCountryIso[p] = country.ccn3;
   state.territories[country.ccn3] = p;
+  
+  const capitalName = country.capital[0];
+  const capitalCity = state.cities.find(c => c.name === capitalName);
+  if (capitalCity) {
+    capitalCity.owner = p;
+    capitalCity.troops = { infantry: 5, tank: 2, air: 1 };
+  }
+  
   state.players[p].income += 10;
   
   if (p === 1) {
@@ -323,7 +507,7 @@ function confirmCountry() {
     state.selectedPick = null;
     renderCountryPicker();
   } else {
-    document.getElementById("countryModal").style.display = "none";
+    document.getElementById("countryModal").classList.remove("show");
     state.phase = "playing";
     state.currentPlayer = 1;
     state.selectedPick = null;
@@ -335,21 +519,14 @@ function confirmCountry() {
     log("Игра началась! Игрок 1 ходит первым.");
   }
 }
-  // ===== ОБНОВЛЕНИЕ =====
-function updateMapColors() {
+ function updateMapColors() {
   d3.selectAll("path.country").attr("class", d => {
     const owner = state.territories[d.id] || 0;
     return `country owner-${owner}`;
   });
 }
 
-function updateCityColors() {
-  d3.selectAll("circle.city-marker").attr("fill", d => {
-    const iso = getIsoByCca3(d.countryIso);
-    const owner = state.territories[iso] || 0;
-    return owner === 1 ? "#e94560" : owner === 2 ? "#2d6a9f" : "#f4c542";
-  });
-}
+function updateCityColors() { updateCityLabels(); }
 
 function updateUI() {
   for (let p = 1; p <= 2; p++) {
@@ -359,51 +536,36 @@ function updateUI() {
     document.getElementById(`p${p}Money`).textContent = `💰 ${pl.money}`;
     document.getElementById(`p${p}Actions`).textContent = pl.actions;
     document.getElementById(`p${p}Income`).textContent = `+${pl.income}`;
-    document.getElementById(`panel${p}`).style.opacity = (state.currentPlayer === p) ? "1" : "0.6";
+    document.getElementById(`panel${p}`).classList.toggle("active", state.currentPlayer === p);
+    const pw = getPlayerTotalPower(p);
+    document.getElementById(`p${p}Power`).textContent = 
+      `⚔️ ${pw.power} · 🏙️${pw.cities} · 🚀${pl.rockets}`;
   }
-  
-  document.getElementById("turnIndicator").textContent = 
-    state.phase === "playing" ? `🎮 Ход игрока ${state.currentPlayer}` : "Выбор стран...";
-  
-  const cp = state.currentPlayer;
-  const pl = state.players[cp];
-  document.getElementById("infLvl").textContent = pl.unitLevels.infantry;
-  document.getElementById("infPower").textContent = 10 * pl.unitLevels.infantry;
-  document.getElementById("tankLvl").textContent = pl.unitLevels.tank;
-  document.getElementById("tankPower").textContent = 25 * pl.unitLevels.tank;
-  document.getElementById("airLvl").textContent = pl.unitLevels.air;
-  document.getElementById("airPower").textContent = 40 * pl.unitLevels.air;
-  
-  document.getElementById("infIcon").textContent = pl.unitLevels.infantry >= 3 ? "🪖" : "🚶";
-  document.getElementById("tankIcon").textContent = pl.unitLevels.tank >= 3 ? "🚀" : "🛡️";
-  document.getElementById("airIcon").textContent = pl.unitLevels.air >= 3 ? "🛩️" : "✈️";
+  updateButtons();
 }
 
-function renderActions() {
-  const actions = document.getElementById("actions");
+function updateButtons() {
   const p = state.currentPlayer;
   const pl = state.players[p];
-  actions.innerHTML = `
-    <button class="btn-gold" onclick="skipTurn()" ${pl.actions <= 0 ? 'disabled' : ''}>
-      ⏭️ Пропустить ход (+${pl.income * 5}💰, -1 ход)
-    </button>
-    <button class="btn-secondary" onclick="endTurn()">Завершить ход (осталось ${pl.actions})</button>
-  `;
+  document.getElementById("skipBtn").disabled = pl.actions <= 0;
+  document.getElementById("endBtn").textContent = `✅ Ход (${pl.actions})`;
 }
-  // ===== ТУЛТИПЫ =====
-function showTooltip(event, d) {
+
+function renderActions() { updateButtons(); }
+ function showTooltip(event, d) {
   const tooltip = document.getElementById("tooltip");
   const owner = state.territories[d.id] || 0;
   const ownerName = owner === 0 ? "Нейтральная" : `Игрок ${owner}`;
-  tooltip.innerHTML = `<b>${getCountryNameByIso(d.id)}</b><br>Владелец: ${ownerName}`;
+  const cp = getCountryPower(d.id);
+  tooltip.innerHTML = `<b>${getCountryNameByIso(d.id)}</b><br>Владелец: ${ownerName}<br>🛡️ Сила: ${cp.power}`;
   tooltip.style.display = "block";
 }
 
 function showCityTooltip(event, d) {
   const tooltip = document.getElementById("tooltip");
   const iso = getIsoByCca3(d.countryIso);
-  const owner = state.territories[iso] || 0;
-  tooltip.innerHTML = `<b>${d.name}</b><br>${d.countryName} · Владелец: ${owner === 0 ? "Нейтрал" : "Игрок " + owner}`;
+  const owner = d.owner || state.territories[iso] || 0;
+  tooltip.innerHTML = `<b>${d.name}</b><br>${d.countryName}<br>Владелец: ${owner === 0 ? "Нейтрал" : "Игрок " + owner}<br>🛡️ ${getCityDefense(d)} · ${formatTroops(d.troops)}`;
   tooltip.style.display = "block";
 }
 
@@ -414,95 +576,98 @@ function moveTooltip(event) {
   tooltip.style.top = (event.clientY - container.top + 15) + "px";
 }
 
-function hideTooltip() {
-  document.getElementById("tooltip").style.display = "none";
-  }
-  // ===== КЛИК ПО СТРАНЕ =====
-function clickCountry(d) {
+function hideTooltip() { document.getElementById("tooltip").style.display = "none"; }
+ function clickCountry(d) {
   if (state.phase !== "playing") return;
   const iso = d.id;
   const name = getCountryNameByIso(iso);
   const owner = state.territories[iso] || 0;
   const p = state.currentPlayer;
   const pl = state.players[p];
-  const defense = getDefense(iso);
-  const cityCount = state.cities.filter(c => getIsoByCca3(c.countryIso) === iso).length;
+  
+  const countryPower = getCountryPower(iso);
+  const cities = state.cities.filter(c => getIsoByCca3(c.countryIso) === iso);
   
   document.getElementById("cityTitle").textContent = name;
   document.getElementById("cityInfo").innerHTML = `
     Владелец: <b>${owner === 0 ? "Нейтральная" : "Игрок " + owner}</b><br>
-    🛡️ Сила обороны: <b style="color:#f4c542">${defense}</b><br>
-    🏙️ Городов на территории: ${cityCount}
+    🛡️ Общая сила: <b style="color:#f4c542">${countryPower.power}</b><br>
+    🏙️ Городов: ${countryPower.cityCount} · 🚶×${countryPower.infantry} · 🛡️×${countryPower.tank} · ✈️×${countryPower.air}
   `;
   
   const box = document.getElementById("cityActions");
   box.innerHTML = "";
   
-  if (owner === p) {
-    box.innerHTML = `
-      <p style="font-size:13px;color:#aaa;margin-bottom:8px">Произвести войска:</p>
-      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('infantry',${n})">🚶×${n} (${n*20}💰)</button>`).join("")}
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('tank',${n})">🛡️×${n} (${n*50}💰)</button>`).join("")}
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('air',${n})">✈️×${n} (${n*80}💰)</button>`).join("")}
-      </div>
-      <button class="btn-secondary" style="width:100%" onclick="fortifyCountry('${iso}')" ${pl.actions <= 0 ? 'disabled' : ''}>
-        🛡️ Укрепить (+15 защиты, -1 ход)
-      </button>
-    `;
-  } else {
-    const attackPower = pl.units.infantry * 10 * pl.unitLevels.infantry + pl.units.tank * 25 * pl.unitLevels.tank;
-    const canWin = attackPower >= defense;
-    
-    box.innerHTML = `
-      <p style="font-size:13px;color:#aaa;margin-bottom:12px">
-        ${owner === 0 ? "Нейтральная территория" : "Территория Игрока " + owner}
-      </p>
-      <button 
-        onclick="startWar('${iso}', ${defense})" 
-        ${pl.actions <= 0 ? 'disabled' : ''}
-        style="
-          width:100%;
-          padding:16px;
-          background:${pl.actions <= 0 ? '#555' : '#8B0000'};
-          color:#fff;
-          border:none;
-          border-radius:12px;
-          font-size:16px;
-          font-weight:bold;
-          cursor:${pl.actions <= 0 ? 'not-allowed' : 'pointer'};
-          letter-spacing:1px;
-          box-shadow:0 4px 12px rgba(139,0,0,0.4);
-          transition:0.2s;
-        "
-      >
-        ⚔️ НАЧАТЬ ВОЙНУ
-      </button>
-      <p style="font-size:11px;color:#888;margin-top:8px;text-align:center">
-        Твоя сила: <b style="color:${canWin ? '#4caf50' : '#e94560'}">${attackPower}</b> · 
-        Оборона: <b style="color:#f4c542">${defense}</b>
-      </p>
-    `;
+  if (cities.length === 0) {
+    box.innerHTML = `<p style="color:#888;text-align:center;padding:20px">Городов нет</p>`;
+    document.getElementById("cityModal").classList.add("show");
+    return;
   }
   
-  document.getElementById("cityModal").style.display = "flex";
+  const attackPower = pl.units.infantry * 10 * pl.unitLevels.infantry + pl.units.tank * 25 * pl.unitLevels.tank;
+  
+  box.innerHTML = `
+    <p style="font-size:12px;color:#f4c542;margin-bottom:8px">ВЫБЕРИ ГОРОД:</p>
+    <div style="max-height:350px;overflow-y:auto">
+      ${cities.map(c => {
+        const cityOwner = c.owner || state.territories[iso] || 0;
+        const isMine = cityOwner === p;
+        const cityDef = getCityDefense(c);
+        const check = canAttackCity(c, p);
+        const canWin = attackPower >= cityDef;
+        
+        return `
+          <div style="background:#1a1a2e;border-radius:10px;padding:10px;margin-bottom:8px;border:1px solid ${isMine ? '#4caf50' : '#555'}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <b style="font-size:14px">${c.name}</b>
+              <span style="font-size:12px;color:#f4c542">🛡️ ${cityDef}</span>
+            </div>
+            <div style="font-size:11px;color:#aaa;margin-bottom:6px">${formatTroops(c.troops)}</div>
+            ${isMine 
+              ? `<button onclick="closeModal('cityModal'); clickCityMarkerByName('${c.name}')" 
+                   style="width:100%;padding:8px;background:#2d6a9f;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
+                   🏭 Производство
+                 </button>`
+              : `<button onclick="closeModal('cityModal'); clickCityMarkerByName('${c.name}')" 
+                   style="width:100%;padding:10px;background:${check.allowed ? '#8B0000' : '#555'};color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
+                   ${check.allowed ? `⚔️ АТАКОВАТЬ ${canWin ? '✅' : '❌'}` : '🚫 ' + check.reason}
+                 </button>`
+            }
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+  
+  document.getElementById("cityModal").classList.add("show");
 }
 
-// ===== КЛИК ПО ГОРОДУ =====
-function clickCityMarker(city) {
+function clickCityMarkerByName(cityName) {
+  const city = state.cities.find(c => c.name === cityName);
+  if (city) clickCityMarker(city);
+}
+ function clickCityMarker(city) {
   if (state.phase !== "playing") return;
   const iso = getIsoByCca3(city.countryIso);
-  const owner = state.territories[iso] || 0;
+  const owner = city.owner || state.territories[iso] || 0;
   const p = state.currentPlayer;
   const pl = state.players[p];
   
-  const defense = 20 + (owner !== 0 ? 10 : 0) + (city.isCapital ? 15 : 0);
+  const defense = getCityDefense(city);
+  const check = canAttackCity(city, p);
   
   document.getElementById("cityTitle").textContent = city.name;
   document.getElementById("cityInfo").innerHTML = `
     Страна: <b>${city.countryName}</b><br>
     Владелец: <b>${owner === 0 ? "Нейтрал" : "Игрок " + owner}</b><br>
-    🛡️ Сила города: <b style="color:#f4c542;font-size:18px">${defense}</b>
+    🛡️ Оборона: <b style="color:#f4c542;font-size:18px">${defense}</b><br>
+    <div style="margin-top:8px;font-size:13px;color:#ccc">${formatTroops(city.troops)}</div>
+    ${owner !== p ? `
+      <div style="margin-top:10px;padding:8px;background:${check.allowed ? '#1a3e1a' : '#3e1a1a'};border-radius:8px;font-size:12px">
+        📍 Ближайший твой город: <b>${check.nearest?.name || "—"}</b> (${check.distance} км)<br>
+        ${check.allowed ? '✅ Можно атаковать' : '❌ ' + check.reason}
+      </div>
+    ` : ''}
   `;
   
   const box = document.getElementById("cityActions");
@@ -510,141 +675,375 @@ function clickCityMarker(city) {
   
   if (owner === p) {
     box.innerHTML = `
-      <p style="font-size:13px;color:#aaa;margin-bottom:8px">Производство в городе:</p>
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('infantry',${n})">🚶×${n} (${n*20}💰)</button>`).join("")}
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('tank',${n})">🛡️×${n} (${n*50}💰)</button>`).join("")}
-        ${[1,2,3].map(n => `<button class="btn-primary" onclick="produceUnits('air',${n})">✈️×${n} (${n*80}💰)</button>`).join("")}
+      <p style="font-size:13px;color:#aaa;margin-bottom:8px">Произвести:</p>
+      <div class="action-grid">
+        ${[1,2,3].map(n => `<button onclick="produceInCity('${city.name}', 'infantry', ${n})">🚶×${n}<br>${n*20}💰</button>`).join("")}
       </div>
-      <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="fortifyCountry('${iso}')" ${pl.actions <= 0 ? 'disabled' : ''}>
-        🛡️ Укрепить город (+15, -1 ход)
+      <div class="action-grid">
+        ${[1,2,3].map(n => `<button onclick="produceInCity('${city.name}', 'tank', ${n})">🛡️×${n}<br>${n*50}💰</button>`).join("")}
+      </div>
+      <div class="action-grid">
+        ${[1,2,3].map(n => `<button onclick="produceInCity('${city.name}', 'air', ${n})">✈️×${n}<br>${n*80}💰</button>`).join("")}
+      </div>
+      <button class="btn-secondary" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;background:#2d6a9f;color:#fff;border:none;font-weight:bold;cursor:pointer" onclick="fortifyCity('${city.name}')" ${pl.actions <= 0 ? 'disabled' : ''}>
+        🛡️ Укрепить (+2 пехоты, -1 ход)
       </button>
     `;
   } else {
     const attackPower = pl.units.infantry * 10 * pl.unitLevels.infantry + pl.units.tank * 25 * pl.unitLevels.tank;
     const canWin = attackPower >= defense;
+    const disabled = !check.allowed || pl.actions <= 0;
     
     box.innerHTML = `
       <p style="font-size:13px;color:#aaa;margin-bottom:12px">
         ${owner === 0 ? "Нейтральный город" : "Город Игрока " + owner}
       </p>
-      <button 
-        onclick="startWar('${iso}', ${defense}, '${city.name}')" 
-        ${pl.actions <= 0 ? 'disabled' : ''}
-        style="
-          width:100%;
-          padding:16px;
-          background:${pl.actions <= 0 ? '#555' : '#8B0000'};
-          color:#fff;
-          border:none;
-          border-radius:12px;
-          font-size:16px;
-          font-weight:bold;
-          cursor:${pl.actions <= 0 ? 'not-allowed' : 'pointer'};
-          letter-spacing:1px;
-          box-shadow:0 4px 12px rgba(139,0,0,0.4);
-          transition:0.2s;
-        "
-      >
-        ⚔️ НАЧАТЬ ВОЙНУ
+      <button class="war-btn" onclick="startWarCity('${city.name}')" ${disabled ? 'disabled' : ''}>
+        ${check.allowed ? '⚔️ НАЧАТЬ ВОЙНУ' : '🚫 ' + check.reason}
       </button>
-      <p style="font-size:11px;color:#888;margin-top:8px;text-align:center">
-        Твоя сила: <b style="color:${canWin ? '#4caf50' : '#e94560'}">${attackPower}</b> · 
-        Оборона: <b style="color:#f4c542">${defense}</b>
-      </p>
+      ${check.allowed ? `
+        <p style="font-size:11px;color:#888;margin-top:8px;text-align:center">
+          Сила: <b style="color:${canWin ? '#4caf50' : '#e94560'}">${attackPower}</b> · Оборона: <b style="color:#f4c542">${defense}</b>
+        </p>
+      ` : ''}
+      <button class="rocket-btn" onclick="openRocketModal('${city.name}')" ${pl.rockets <= 0 ? 'disabled' : ''}>
+        🚀 ЗАПУСТИТЬ РАКЕТУ (${pl.rockets} шт)
+      </button>
     `;
   }
   
-  document.getElementById("cityModal").style.display = "flex";
-}
-  // ===== НАЧАЛО ВОЙНЫ =====
-function startWar(iso, defense, cityName = null) {
+  document.getElementById("cityModal").classList.add("show");
+ }
+ function startWarCity(cityName) {
   const p = state.currentPlayer;
   const pl = state.players[p];
-  
   if (pl.actions <= 0) return alert("Нет ходов!");
   
-  const owner = state.territories[iso] || 0;
-  if (owner === p) return alert("Это твоя территория!");
+  const city = state.cities.find(c => c.name === cityName);
+  if (!city) return;
+  
+  const iso = getIsoByCca3(city.countryIso);
+  const owner = city.owner || state.territories[iso] || 0;
+  if (owner === p) return;
+  
+  const check = canAttackCity(city, p);
+  if (!check.allowed) return alert(`❌ НЕЛЬЗЯ!\n\n${check.reason}`);
   
   const attackPower = pl.units.infantry * 10 * pl.unitLevels.infantry + pl.units.tank * 25 * pl.unitLevels.tank;
+  const defense = getCityDefense(city);
   
   pl.actions--;
-  
   const luck = 0.7 + Math.random() * 0.6;
   const finalAttack = Math.floor(attackPower * luck);
   
-  const targetName = cityName || getCountryNameByIso(iso);
-  
   if (finalAttack >= defense) {
-    state.territories[iso] = p;
-    pl.units.infantry = Math.max(1, Math.floor(pl.units.infantry * 0.7));
+    city.owner = p;
+    city.troops = { infantry: 1, tank: 0, air: 0 };
+    const allCities = state.cities.filter(c => getIsoByCca3(c.countryIso) === iso);
+    if (allCities.every(c => c.owner === p)) state.territories[iso] = p;
     
-    log(`⚔️ ПОБЕДА! Игрок ${p} захватил ${targetName}! (${finalAttack} vs ${defense})`);
-    alert(`⚔️ ПОБЕДА!\n\nТы захватил ${targetName}!\n\nТвоя сила: ${finalAttack}\nОборона: ${defense}`);
+    pl.units.infantry = Math.max(1, Math.floor(pl.units.infantry * 0.7));
+    log(`⚔️ Игрок ${p} захватил ${cityName}!`);
+    showDamage(city, "⚔️ ЗАХВАТ!", "#4caf50");
     recalcIncome();
   } else {
-    pl.units.infantry = Math.max(1, Math.floor(pl.units.infantry * 0.5));
-    
-    log(`❌ ПОРАЖЕНИЕ! Игрок ${p} не взял ${targetName}. (${finalAttack} vs ${defense})`);
-    alert(`❌ ПОРАЖЕНИЕ!\n\nТы не смог взять ${targetName}.\n\nТвоя сила: ${finalAttack}\nОборона: ${defense}\n\nПотери: половина пехоты.`);
+    city.troops.infantry = Math.max(0, city.troops.infantry - Math.floor(finalAttack / 20));
+    pl.units.infantry = Math.max(1, Math.floor(pl.units.infantry * 0.6));
+    log(`❌ Игрок ${p} не взял ${cityName}`);
+    showDamage(city, "❌ ПРОВАЛ", "#e94560");
   }
   
-  updateUI();
-  updateMapColors();
-  updateCityColors();
-  renderActions();
+  updateUI(); updateMapColors(); updateCityColors(); renderActions();
   closeModal("cityModal");
 }
 
-// ===== ПРОИЗВОДСТВО =====
-function produceUnits(type, qty) {
+function produceInCity(cityName, type, qty) {
   const p = state.currentPlayer;
   const pl = state.players[p];
+  const city = state.cities.find(c => c.name === cityName);
+  if (!city) return;
+  
   const cost = type === 'infantry' ? 20 : type === 'tank' ? 50 : 80;
   const total = cost * qty;
   
   if (pl.money < total) return alert("Недостаточно денег!");
   pl.money -= total;
-  pl.units[type] += qty;
-  log(`Игрок ${p} произвёл ${qty} ${type} за ${total}💰`);
-  updateUI();
+  city.troops[type] += qty;
+  log(`Игрок ${p} произвёл ${qty} ${type} в ${cityName}`);
+  updateUI(); updateCityLabels();
+  clickCityMarker(city);
+}
+
+function fortifyCity(cityName) {
+  const p = state.currentPlayer;
+  const pl = state.players[p];
+  if (pl.actions <= 0) return alert("Нет ходов!");
+  const city = state.cities.find(c => c.name === cityName);
+  if (!city) return;
+  pl.actions--;
+  city.troops.infantry += 2;
+  log(`Игрок ${p} укрепил ${cityName}`);
+  updateUI(); updateCityLabels(); renderActions();
+  closeModal("cityModal");
+}
+
+function openShop() {
+  const p = state.currentPlayer;
+  const pl = state.players[p];
+  const box = document.getElementById("shopContent");
+  
+  const shopData = [
+    { type: 'infantry', name: '🚶 Пехота', icon: pl.unitLevels.infantry >= 3 ? '🪖' : '🚶', cost: 50, power: 10 },
+    { type: 'tank', name: '🛡️ Танки', icon: pl.unitLevels.tank >= 3 ? '🚀' : '🛡️', cost: 100, power: 25 },
+    { type: 'air', name: '✈️ Авиация', icon: pl.unitLevels.air >= 3 ? '🛩️' : '✈️', cost: 150, power: 40 },
+    { type: 'rocket', name: '🚀 Ракета', icon: '🚀', cost: 200, power: 100 },
+  ];
+  
+  box.innerHTML = shopData.map(item => {
+    if (item.type === 'rocket') {
+      return `
+        <div class="shop-item">
+          <div class="unit-icon">${item.icon}</div>
+          <div class="shop-item-info">
+            <h4>${item.name}</h4>
+            <p>У тебя: ${pl.rockets} · Шанс попадания 50%</p>
+          </div>
+          <button onclick="buyRocket()">💰${item.cost}</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="shop-item">
+        <div class="unit-icon">${item.icon}</div>
+        <div class="shop-item-info">
+          <h4>${item.name}</h4>
+          <p>Ур. ${pl.unitLevels[item.type]}/5 · Сила: ${item.power * pl.unitLevels[item.type]}</p>
+        </div>
+        <button onclick="upgradeUnit('${item.type}')" ${pl.unitLevels[item.type] >= 5 ? 'disabled' : ''}>
+          ${pl.unitLevels[item.type] >= 5 ? 'МАКС' : `💰${item.cost}`}
+        </button>
+      </div>
+    `;
+  }).join("");
+  
+  document.getElementById("shopModal").classList.add("show");
 }
 
 function upgradeUnit(type) {
   const p = state.currentPlayer;
   const pl = state.players[p];
   const costs = { infantry: 50, tank: 100, air: 150 };
-  if (pl.unitLevels[type] >= 5) return alert("Макс. уровень!");
+  if (pl.unitLevels[type] >= 5) return;
   if (pl.money < costs[type]) return alert("Недостаточно денег!");
   pl.money -= costs[type];
   pl.unitLevels[type]++;
   log(`Игрок ${p} улучшил ${type} до ур.${pl.unitLevels[type]}`);
   updateUI();
+  openShop();
 }
 
-function fortifyCountry(iso) {
+function buyRocket() {
   const p = state.currentPlayer;
   const pl = state.players[p];
-  if (pl.actions <= 0) return alert("Нет ходов!");
-  pl.actions--;
-  log(`Игрок ${p} укрепил ${getCountryNameByIso(iso)}`);
+  if (pl.money < 200) return alert("Недостаточно денег!");
+  pl.money -= 200;
+  pl.rockets++;
+  log(`Игрок ${p} купил ракету`);
   updateUI();
-  renderActions();
-  closeModal("cityModal");
+  openShop();
 }
-  // ===== ХОДЫ =====
-function skipTurn() {
+ // ===== РАКЕТЫ =====
+function openRocketModal(cityName) {
+  const p = state.currentPlayer;
+  const pl = state.players[p];
+  const city = state.cities.find(c => c.name === cityName);
+  if (!city) return;
+  
+  document.getElementById("rocketInfo").innerHTML = `
+    🎯 Цель: <b>${city.name}</b> (${city.countryName})<br>
+    🚀 У тебя ракет: <b style="color:#f4c542">${pl.rockets}</b><br>
+    🎲 Шанс попадания: <b>50%</b><br>
+    💥 Урон при попадании: <b>100</b>
+  `;
+  
+  document.getElementById("rocketActions").innerHTML = `
+    <button class="rocket-btn" onclick="launchRocket('${city.name}')" ${pl.rockets <= 0 ? 'disabled' : ''}>
+      ${pl.rockets > 0 ? '🚀 ЗАПУСТИТЬ' : '🚫 НЕТ РАКЕТ'}
+    </button>
+  `;
+  
+  document.getElementById("rocketModal").classList.add("show");
+}
+
+function launchRocket(targetCityName) {
+  const p = state.currentPlayer;
+  const pl = state.players[p];
+  if (pl.rockets <= 0) return alert("Нет ракет!");
+  
+  const targetCity = state.cities.find(c => c.name === targetCityName);
+  if (!targetCity) return;
+  
+  // Ближайший мой город — откуда летит
+  const nearest = getNearestMyCity(targetCity, p);
+  if (!nearest) return alert("Нет твоих городов!");
+  
+  pl.rockets--;
+  closeModal("rocketModal");
+  closeModal("cityModal");
+  
+  // ЗАПУСКАЕМ АНИМАЦИЮ
+  animateRocket(nearest.city, targetCity, () => {
+    // Колбэк после долёта
+    const hit = Math.random() < 0.5; // 50/50
+    
+    if (hit) {
+      // Попадание
+      const iso = getIsoByCca3(targetCity.countryIso);
+      const owner = targetCity.owner || state.territories[iso] || 0;
+      
+      if (owner !== p) {
+        targetCity.troops.infantry = Math.max(0, targetCity.troops.infantry - 5);
+        targetCity.troops.tank = Math.max(0, targetCity.troops.tank - 2);
+        
+        log(`🚀 ПОПАДАНИЕ! Ракета Игрока ${p} ударила по ${targetCity.name}!`);
+        showExplosion(targetCity);
+        showDamage(targetCity, "💥 -5🚶 -2🛡️", "#ff6600");
+        
+        // Если всё уничтожено — захват
+        if (targetCity.troops.infantry === 0 && targetCity.troops.tank === 0 && targetCity.troops.air === 0) {
+          targetCity.owner = p;
+          targetCity.troops = { infantry: 1, tank: 0, air: 0 };
+          log(`🏴 ${targetCity.name} уничтожен и захвачен!`);
+          recalcIncome();
+        }
+      }
+    } else {
+      // Промах
+      log(`🚫 Ракета Игрока ${p} по ${targetCity.name} СБИТА!`);
+      showDamage(targetCity, "🚫 СБИТА", "#888");
+    }
+    
+    updateUI(); updateMapColors(); updateCityColors(); renderActions();
+  });
+}
+
+// ===== АНИМАЦИЯ ПОЛЁТА РАКЕТЫ =====
+function animateRocket(fromCity, toCity, onComplete) {
+  const fromPos = state.projection([fromCity.lon, fromCity.lat]);
+  const toPos = state.projection([toCity.lon, toCity.lat]);
+  
+  if (!fromPos || !toPos) return onComplete();
+  
+  const rocketsLayer = state.zoomLayer.select("g.rockets-layer");
+  
+  // Траектория (пунктирная линия)
+  const trail = rocketsLayer.append("line")
+    .attr("class", "rocket-trail")
+    .attr("x1", fromPos[0]).attr("y1", fromPos[1])
+    .attr("x2", toPos[0]).attr("y2", toPos[1])
+    .attr("stroke", "#ff6600")
+    .attr("stroke-width", 2)
+    .attr("stroke-dasharray", "8,6")
+    .style("opacity", 0.9);
+  
+  // Точка ракеты
+  const rocket = rocketsLayer.append("circle")
+    .attr("class", "rocket-dot")
+    .attr("r", 6)
+    .attr("fill", "#fff")
+    .attr("stroke", "#ff6600")
+    .attr("stroke-width", 2)
+    .attr("cx", fromPos[0])
+    .attr("cy", fromPos[1]);
+  
+  // Текст ракеты
+  const rocketIcon = rocketsLayer.append("text")
+    .attr("font-size", "16px")
+    .attr("text-anchor", "middle")
+    .attr("x", fromPos[0])
+    .attr("y", fromPos[1] - 12)
+    .text("🚀");
+  
+  const duration = 1500; // мс
+  const startTime = Date.now();
+  
+  function step() {
+    const t = Math.min((Date.now() - startTime) / duration, 1);
+    // Плавная интерполяция
+    const easeT = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
+    
+    const x = fromPos[0] + (toPos[0] - fromPos[0]) * easeT;
+    const y = fromPos[1] + (toPos[1] - fromPos[1]) * easeT;
+    // Дугой вверх
+    const arcHeight = 50 * Math.sin(Math.PI * easeT);
+    
+    rocket.attr("cx", x).attr("cy", y - arcHeight);
+    rocketIcon.attr("x", x).attr("y", y - arcHeight - 10);
+    
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      // Удаляем ракету
+      rocket.remove();
+      rocketIcon.remove();
+      
+      // Мигаем трассой и убираем
+      trail.transition().duration(300).style("opacity", 0).remove();
+      
+      onComplete();
+    }
+  }
+  
+  step();
+}
+
+// ===== ВЗРЫВ =====
+function showExplosion(city) {
+  const pos = state.projection([city.lon, city.lat]);
+  if (!pos) return;
+  
+  const rocketsLayer = state.zoomLayer.select("g.rockets-layer");
+  
+  const circle = rocketsLayer.append("circle")
+    .attr("cx", pos[0])
+    .attr("cy", pos[1])
+    .attr("r", 5)
+    .attr("fill", "#fff")
+    .attr("opacity", 1)
+    .attr("class", "explosion");
+  
+  setTimeout(() => circle.remove(), 1100);
+}
+
+// ===== ВСПЛЫВАЮЩИЙ УРОН =====
+function showDamage(city, text, color) {
+  const pos = state.projection([city.lon, city.lat]);
+  if (!pos) return;
+  
+  const rocketsLayer = state.zoomLayer.select("g.rockets-layer");
+  
+  const textEl = rocketsLayer.append("text")
+    .attr("class", "damage-text")
+    .attr("x", pos[0])
+    .attr("y", pos[1] - 15)
+    .attr("text-anchor", "middle")
+    .attr("fill", color)
+    .attr("stroke", "#000")
+    .attr("stroke-width", "0.5px")
+    .attr("paint-order", "stroke")
+    .text(text);
+  
+  setTimeout(() => textEl.remove(), 1600);
+ }
+ function skipTurn() {
   const p = state.currentPlayer;
   const pl = state.players[p];
   if (pl.actions <= 0) return;
-  
   const bonus = pl.income * 5;
   pl.money += bonus;
   pl.actions--;
-  log(`⏭️ Игрок ${p} пропустил ход и получил ${bonus}💰`);
-  updateUI();
-  renderActions();
+  log(`⏭️ Игрок ${p} пропустил ход (+${bonus}💰)`);
+  updateUI(); renderActions();
 }
 
 function endTurn() {
@@ -652,14 +1051,14 @@ function endTurn() {
   state.currentPlayer = 3 - p;
   state.players[state.currentPlayer].actions = 3;
   log(`--- Ход Игрока ${state.currentPlayer} ---`);
-  updateUI();
-  renderActions();
+  updateUI(); renderActions();
 }
 
 function recalcIncome() {
   for (let p = 1; p <= 2; p++) {
-    const owned = Object.values(state.territories).filter(o => o === p).length;
-    state.players[p].income = 5 + owned * 2;
+    const ownedCities = state.cities.filter(c => c.owner === p).length;
+    const ownedCountries = Object.values(state.territories).filter(o => o === p).length;
+    state.players[p].income = 5 + ownedCities * 3 + ownedCountries * 2;
   }
   updateUI();
 }
@@ -668,26 +1067,23 @@ function startTicking() {
   if (state.tickInterval) clearInterval(state.tickInterval);
   state.tickInterval = setInterval(() => {
     if (state.phase !== "playing") return;
-    for (let p = 1; p <= 2; p++) {
-      state.players[p].money += state.players[p].income;
-    }
+    for (let p = 1; p <= 2; p++) state.players[p].money += state.players[p].income;
     updateUI();
   }, 3000);
 }
 
 function log(msg) {
-  const el = document.getElementById("log");
+  const el = document.getElementById("logPanel");
   const div = document.createElement("div");
   div.textContent = msg;
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
 
-function closeModal(id) {
-  document.getElementById(id).style.display = "none";
-}
+function toggleLog() { document.getElementById("logPanel").classList.toggle("show"); }
 
-// ===== СТАРТ =====
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+
 loadAllData();
 </script>
 </body>
