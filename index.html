@@ -210,80 +210,113 @@ const state = {
   svg: null,
   zoomLayer: null,
 };
- async function loadAllData() {
-  const CDN_URLS = [
-    'https://cdn.jsdelivr.net/npm/world-countries@4.0.0/countries.json',
-    'https://unpkg.com/world-countries@4.0.0/countries.json',
-    'https://raw.githubusercontent.com/mledoze/countries/master/countries.json'
+ 
+}// ВСТРОЕННЫЙ СПИСОК СТРАН (не требует загрузки)
+const BUILTIN_COUNTRIES = [
+  { cca3: "RUS", ccn3: "643", flag: "🇷🇺", name: "Россия", capital: "Москва", lat: 55.7558, lon: 37.6173 },
+  { cca3: "USA", ccn3: "840", flag: "🇺🇸", name: "США", capital: "Вашингтон", lat: 38.9072, lon: -77.0369 },
+  { cca3: "GBR", ccn3: "826", flag: "🇬🇧", name: "Великобритания", capital: "Лондон", lat: 51.5074, lon: -0.1278 },
+  { cca3: "DEU", ccn3: "276", flag: "🇩🇪", name: "Германия", capital: "Берлин", lat: 52.52, lon: 13.405 },
+  { cca3: "FRA", ccn3: "250", flag: "🇫🇷", name: "Франция", capital: "Париж", lat: 48.8566, lon: 2.3522 },
+  { cca3: "ITA", ccn3: "380", flag: "🇮🇹", name: "Италия", capital: "Рим", lat: 41.9028, lon: 12.4964 },
+  { cca3: "CHN", ccn3: "156", flag: "🇨🇳", name: "Китай", capital: "Пекин", lat: 39.9042, lon: 116.4074 },
+  { cca3: "JPN", ccn3: "392", flag: "🇯🇵", name: "Япония", capital: "Токио", lat: 35.6762, lon: 139.6503 },
+  { cca3: "UKR", ccn3: "804", flag: "🇺🇦", name: "Украина", capital: "Киев", lat: 50.4501, lon: 30.5234 },
+  { cca3: "POL", ccn3: "616", flag: "🇵🇱", name: "Польша", capital: "Варшава", lat: 52.2297, lon: 21.0122 },
+  { cca3: "BRA", ccn3: "076", flag: "🇧🇷", name: "Бразилия", capital: "Бразилиа", lat: -15.8267, lon: -47.9218 },
+  { cca3: "IND", ccn3: "356", flag: "🇮🇳", name: "Индия", capital: "Нью-Дели", lat: 28.6139, lon: 77.209 },
+  { cca3: "CAN", ccn3: "124", flag: "🇨🇦", name: "Канада", capital: "Оттава", lat: 45.4215, lon: -75.6972 },
+  { cca3: "AUS", ccn3: "036", flag: "🇦🇺", name: "Австралия", capital: "Канберра", lat: -35.2809, lon: 149.13 },
+  { cca3: "EGY", ccn3: "818", flag: "🇪🇬", name: "Египет", capital: "Каир", lat: 30.0444, lon: 31.2357 },
+  { cca3: "TUR", ccn3: "792", flag: "🇹🇷", name: "Турция", capital: "Анкара", lat: 39.9334, lon: 32.8597 },
+  { cca3: "KOR", ccn3: "410", flag: "🇰🇷", name: "Южная Корея", capital: "Сеул", lat: 37.5665, lon: 126.978 },
+  { cca3: "MEX", ccn3: "484", flag: "🇲🇽", name: "Мексика", capital: "Мехико", lat: 19.4326, lon: -99.1332 },
+  { cca3: "ESP", ccn3: "724", flag: "🇪🇸", name: "Испания", capital: "Мадрид", lat: 40.4168, lon: -3.7038 },
+  { cca3: "ARG", ccn3: "032", flag: "🇦🇷", name: "Аргентина", capital: "Буэнос-Айрес", lat: -34.6037, lon: -58.3816 },
+  { cca3: "SWE", ccn3: "752", flag: "🇸🇪", name: "Швеция", capital: "Стокгольм", lat: 59.3293, lon: 18.0686 },
+  { cca3: "NOR", ccn3: "578", flag: "🇳🇴", name: "Норвегия", capital: "Осло", lat: 59.9139, lon: 10.7522 },
+  { cca3: "FIN", ccn3: "246", flag: "🇫🇮", name: "Финляндия", capital: "Хельсинки", lat: 60.1699, lon: 24.9384 },
+  { cca3: "GRC", ccn3: "300", flag: "🇬🇷", name: "Греция", capital: "Афины", lat: 37.9838, lon: 23.7275 },
+  { cca3: "PRT", ccn3: "620", flag: "🇵🇹", name: "Португалия", capital: "Лиссабон", lat: 38.7223, lon: -9.1393 },
+  { cca3: "NLD", ccn3: "528", flag: "🇳🇱", name: "Нидерланды", capital: "Амстердам", lat: 52.3676, lon: 4.9041 },
+  { cca3: "CHE", ccn3: "756", flag: "🇨🇭", name: "Швейцария", capital: "Берн", lat: 46.9480, lon: 7.4474 },
+  { cca3: "AUT", ccn3: "040", flag: "🇦🇹", name: "Австрия", capital: "Вена", lat: 48.2082, lon: 16.3738 },
+  { cca3: "THA", ccn3: "764", flag: "🇹🇭", name: "Таиланд", capital: "Бангкок", lat: 13.7563, lon: 100.5018 },
+  { cca3: "VNM", ccn3: "704", flag: "🇻🇳", name: "Вьетнам", capital: "Ханой", lat: 21.0285, lon: 105.8542 },
+  { cca3: "ZAF", ccn3: "710", flag: "🇿🇦", name: "ЮАР", capital: "Претория", lat: -25.7479, lon: 28.2293 },
+  { cca3: "SAU", ccn3: "682", flag: "🇸🇦", name: "Саудовская Аравия", capital: "Эр-Рияд", lat: 24.7136, lon: 46.6753 },
+  { cca3: "ISR", ccn3: "376", flag: "🇮🇱", name: "Израиль", capital: "Иерусалим", lat: 31.7683, lon: 35.2137 },
+  { cca3: "IDN", ccn3: "360", flag: "🇮🇩", name: "Индонезия", capital: "Джакарта", lat: -6.2088, lon: 106.8456 },
+  { cca3: "NGA", ccn3: "566", flag: "🇳🇬", name: "Нигерия", capital: "Абуджа", lat: 9.0765, lon: 7.3986 },
+  { cca3: "KEN", ccn3: "404", flag: "🇰🇪", name: "Кения", capital: "Найроби", lat: -1.2921, lon: 36.8219 },
+  { cca3: "CUB", ccn3: "192", flag: "🇨🇺", name: "Куба", capital: "Гавана", lat: 23.1136, lon: -82.3666 },
+  { cca3: "PER", ccn3: "604", flag: "🇵🇪", name: "Перу", capital: "Лима", lat: -12.0464, lon: -77.0428 },
+  { cca3: "CHL", ccn3: "152", flag: "🇨🇱", name: "Чили", capital: "Сантьяго", lat: -33.4489, lon: -70.6693 },
+  { cca3: "KAZ", ccn3: "398", flag: "🇰🇿", name: "Казахстан", capital: "Астана", lat: 51.1694, lon: 71.4491 },
+  { cca3: "UZB", ccn3: "860", flag: "🇺🇿", name: "Узбекистан", capital: "Ташкент", lat: 41.2995, lon: 69.2401 },
+  { cca3: "IRN", ccn3: "364", flag: "🇮🇷", name: "Иран", capital: "Тегеран", lat: 35.6892, lon: 51.3890 },
+  { cca3: "IRQ", ccn3: "368", flag: "🇮🇶", name: "Ирак", capital: "Багдад", lat: 33.3152, lon: 44.3661 },
+  { cca3: "PAK", ccn3: "586", flag: "🇵🇰", name: "Пакистан", capital: "Исламабад", lat: 33.6844, lon: 73.0479 },
+  { cca3: "AFG", ccn3: "004", flag: "🇦🇫", name: "Афганистан", capital: "Кабул", lat: 34.5553, lon: 69.2075 },
+  { cca3: "MNG", ccn3: "496", flag: "🇲🇳", name: "Монголия", capital: "Улан-Батор", lat: 47.8864, lon: 106.9057 },
+  { cca3: "PHL", ccn3: "608", flag: "🇵🇭", name: "Филиппины", capital: "Манила", lat: 14.5995, lon: 120.9842 },
+  { cca3: "MYS", ccn3: "458", flag: "🇲🇾", name: "Малайзия", capital: "Куала-Лумпур", lat: 3.1390, lon: 101.6869 },
+  { cca3: "SGP", ccn3: "702", flag: "🇸🇬", name: "Сингапур", capital: "Сингапур", lat: 1.3521, lon: 103.8198 },
+  { cca3: "NZL", ccn3: "554", flag: "🇳🇿", name: "Новая Зеландия", capital: "Веллингтон", lat: -41.2865, lon: 174.7762 },
+];
+
+async function loadAllData() {
+  // Заполняем COUNTRY_MAP
+  BUILTIN_COUNTRIES.forEach(c => {
+    COUNTRY_MAP[c.cca3] = c;
+    COUNTRY_MAP[c.ccn3] = c;
+  });
+  ALL_COUNTRIES = BUILTIN_COUNTRIES;
+  
+  // Загружаем только карту (она нужна для отрисовки регионов)
+  const WORLD_URLS = [
+    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+    "https://unpkg.com/world-atlas@2/countries-110m.json"
   ];
   
-  let loaded = false;
-  
-  for (const url of CDN_URLS) {
+  let world = null;
+  for (const url of WORLD_URLS) {
     try {
-      console.log(`Пробую загрузить: ${url}`);
-      const resp = await fetch(url);
-      if (!resp.ok) continue;
-      ALL_COUNTRIES = await resp.json();
-      if (!Array.isArray(ALL_COUNTRIES) || ALL_COUNTRIES.length < 100) continue;
-      loaded = true;
-      console.log(`✅ Загружено с ${url}`);
-      break;
+      console.log(`Пробую карту: ${url}`);
+      world = await d3.json(url);
+      if (world && world.objects) {
+        console.log(`✅ Карта загружена`);
+        break;
+      }
     } catch (e) {
       console.log(`❌ Не сработал: ${url}`);
     }
   }
   
-  if (!loaded) {
-    alert("Не удалось загрузить страны. Выключи VPN и перезагрузи!");
+  if (!world) {
+    alert("Карта не загрузилась. Проверь интернет и обнови страницу.");
     return;
   }
   
-  ALL_COUNTRIES.forEach(c => {
-    COUNTRY_MAP[c.cca3] = c;
-    COUNTRY_MAP[c.ccn3] = c;
-    COUNTRY_MAP[c.cca2] = c;
-  });
+  state.geoData = topojson.feature(world, world.objects.countries).features;
+  state.geoData = state.geoData.filter(f => f.id !== "010");
   
-  try {
-    const world = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-    state.geoData = topojson.feature(world, world.objects.countries).features;
+  // Города из встроенного списка
+  state.cities = BUILTIN_COUNTRIES.map(c => ({
+    name: c.capital,
+    countryIso: c.cca3,
+    countryName: c.name,
+    lat: c.lat,
+    lon: c.lon,
+    isCapital: true,
+    troops: { infantry: 1, tank: 0, air: 0 },
+    owner: 0,
+  }));
+  
+  console.log(`✅ Городов: ${state.cities.length}, регионов: ${state.geoData.length}`);
+  initGame();
+   }
     
-    // УБИРАЕМ АНТАРКТИДУ
-    state.geoData = state.geoData.filter(f => f.id !== "010");
-    
-    // ГОРОДА — только там где есть координаты столицы
-    state.cities = ALL_COUNTRIES
-      .filter(c => {
-        if (!c.capitalInfo || !c.capitalInfo.latlng || c.capitalInfo.latlng.length !== 2) return false;
-        if (c.cca3 === "ATA") return false;
-        if (!c.capital || !c.capital[0]) return false;
-        return true;
-      })
-      .map(c => ({
-        name: c.capital[0],
-        countryIso: c.cca3,
-        countryName: c.translations?.rus?.common || c.name.common,
-        lat: c.capitalInfo.latlng[0],
-        lon: c.capitalInfo.latlng[1],
-        isCapital: true,
-        troops: { infantry: 1, tank: 0, air: 0 },
-        owner: 0,
-      }));
-    
-    console.log(`Итог: ${ALL_COUNTRIES.length} стран, ${state.cities.length} городов, ${state.geoData.length} регионов`);
-    
-    if (state.cities.length === 0) {
-      alert("Города не загрузились. Выключи VPN!");
-      return;
-    }
-    
-    initGame();
-  } catch (e) {
-    console.error("Ошибка карты:", e);
-    alert("Ошибка загрузки карты.");
-  }
-                        }
  let zoomBehavior;
 
 function initGame() {
